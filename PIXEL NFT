@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract PixelNFT is ERC721, ERC721URIStorage, Ownable {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
+
+    // Struct to store pixel art data (optional, if on-chain)
+    struct PixelArt {
+        uint256 width;
+        uint256 height;
+        string colors; // String representation of pixel colors (e.g., hex values)
+    }
+
+    // Mapping from token ID to PixelArt data
+    mapping(uint256 => PixelArt) public pixelArts;
+
+    // Minting price (in wei)
+    uint256 public mintPrice = 0.01 ether;
+
+    // Maximum supply of NFTs
+    uint256 public constant MAX_SUPPLY = 10000;
+
+    constructor() ERC721("PixelNFT", "PXNFT") Ownable(msg.sender) {}
+
+    // Mint a new Pixel NFT
+    function mintPixelNFT(
+        address to,
+        string memory tokenURI,
+        uint256 width,
+        uint256 height,
+        string memory colors
+    ) public payable returns (uint256) {
+        require(msg.value >= mintPrice, "Insufficient ETH sent");
+        require(_tokenIdCounter.current() < MAX_SUPPLY, "Max supply reached");
+
+        uint256 newTokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+
+        _safeMint(to, newTokenId);
+        _setTokenURI(newTokenId, tokenURI);
+
+        // Store pixel art data
+        pixelArts[newTokenId] = PixelArt({
+            width: width,
+            height: height,
+            colors: colors
+        });
+
+        return newTokenId;
+    }
+
+    // Get pixel art data for a token
+    function getPixelArt(uint256 tokenId) public view returns (PixelArt memory) {
+        require(_exists(tokenId), "Token does not exist");
+        return pixelArts[tokenId];
+    }
+
+    // Update mint price (only owner)
+    function setMintPrice(uint256 newPrice) public onlyOwner {
+        mintPrice = newPrice;
+    }
+
+    // Withdraw contract balance (only owner)
+    function withdraw() public onlyOwner {
+        uint256 balance = address(this).balance;
+        payable(owner()).transfer(balance);
+    }
+
+    // Override required by ERC721URIStorage
+    function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+
+    // Override required by ERC721URIStorage
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    // Override to support ERC721URIStorage
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+}
